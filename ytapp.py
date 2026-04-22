@@ -26,7 +26,7 @@ if st.button("Calculate"):
     else:
         with st.spinner("Calculating..."):
             
-            # THE FIX: If the URL contains a playlist ID, extract just the playlist URL
+            # If the URL contains a playlist ID, extract just the playlist URL
             match = re.search(r'list=([a-zA-Z0-9_-]+)', url)
             if match:
                 target_url = f"https://www.youtube.com/playlist?list={match.group(1)}"
@@ -53,19 +53,35 @@ if st.button("Calculate"):
                         else:
                             selected_videos = entries[start_idx:actual_end]
                             
-                            # Sum the durations, ensuring we handle missing data gracefully
-                            total_seconds = sum(v.get('duration', 0) for v in selected_videos if v and v.get('duration'))
+                            # Filter out missing/deleted videos to get a completely accurate count and average
+                            valid_videos = [v for v in selected_videos if v and v.get('duration')]
                             
-                            # Display Normal Speed Result
-                            st.success(f"**Total time (1x speed):** {format_time(total_seconds)}")
-                            st.write(f"Counted {len(selected_videos)} videos (from index {start_num} to {actual_end}).")
-                            
-                            # Display Accelerated Speeds
-                            st.markdown("### Time at Faster Speeds:")
-                            st.info(f"**1.5x speed:** {format_time(total_seconds / 1.5)}")
-                            st.info(f"**2.0x speed:** {format_time(total_seconds / 2.0)}")
-                            st.info(f"**2.5x speed:** {format_time(total_seconds / 2.5)}")
-                            st.info(f"**3.0x speed:** {format_time(total_seconds / 3.0)}")
+                            if not valid_videos:
+                                st.warning("No valid videos found in this range. They may be private or deleted.")
+                            else:
+                                # Sum the durations of only the valid videos
+                                total_seconds = sum(v['duration'] for v in valid_videos)
+                                
+                                # Calculate the average
+                                average_seconds = total_seconds / len(valid_videos)
+                                
+                                # Display Normal Speed & Average Results
+                                st.success(f"**Total time (1x speed):** {format_time(total_seconds)}")
+                                st.info(f"**Average video length:** {format_time(average_seconds)}")
+                                
+                                # Let the user know if any videos were skipped
+                                if len(valid_videos) < len(selected_videos):
+                                    skipped = len(selected_videos) - len(valid_videos)
+                                    st.warning(f"Counted {len(valid_videos)} valid videos. ({skipped} videos were skipped because they are private or deleted).")
+                                else:
+                                    st.write(f"Counted {len(valid_videos)} videos (from index {start_num} to {actual_end}).")
+                                
+                                # Display Accelerated Speeds
+                                st.markdown("### Time at Faster Speeds:")
+                                st.info(f"**1.5x speed:** {format_time(total_seconds / 1.5)}")
+                                st.info(f"**2.0x speed:** {format_time(total_seconds / 2.0)}")
+                                st.info(f"**2.5x speed:** {format_time(total_seconds / 2.5)}")
+                                st.info(f"**3.0x speed:** {format_time(total_seconds / 3.0)}")
                             
             except Exception as e:
                 st.error(f"An error occurred: {e}")
